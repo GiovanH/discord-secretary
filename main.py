@@ -3,6 +3,9 @@ import discord.ext.commands
 import logging
 import re
 import traceback
+import subprocess
+import os
+import shutil
 
 from pathlib import Path
 
@@ -18,10 +21,23 @@ bot = discord.ext.commands.Bot(
     intents=intents
 )
 
-def writeTxt(content, dest):
-    with open(Path(TEXT_ROOT) / dest, 'a') as fp:
-        fp.write(content)
-        fp.write('\n')
+def writeTxt(new_content, dest, warn):
+    destpath = Path(TEXT_ROOT) / dest
+    # try:
+    with open(destpath, 'a') as fp:
+        fp.write(new_content + '\n')
+    # except OSError:
+    #     if warn:
+    #         warn(f"WARN:\n```text\n{traceback.format_exc()}```")
+    #     # Pcloud over rclone does not like seek/append sometimes
+    #     prev_content = ""
+    #     if os.path.isfile(destpath):
+    #         with open(destpath, 'r') as fp:
+    #             prev_content = fp.read()
+    #         shutil.move(destpath, str(destpath) + '.bak')
+
+    #     with open(destpath, 'w') as fp:
+    #         fp.write(prev_content + new_content + '\n')
 
 @bot.listen()
 async def on_ready():
@@ -34,6 +50,7 @@ async def on_message(message):
 
     topic = message.channel.topic
     content = message.content
+    warn = message.channel.send
 
     deleted = False
 
@@ -43,12 +60,13 @@ async def on_message(message):
         args = cmdstr.split(' ')
         if args[0] == "WRITE":
             dest = args[1]
-            writeTxt(content, dest)
+            writeTxt(content, dest, warn=warn)
             return
 
         elif args[0] == "WRITENL":
+            # raise NotImplementedError()
             dest = args[1]
-            writeTxt('', dest)
+            writeTxt('', dest, warn=warn)
             return
 
         elif args[0] == "ECHO":
@@ -62,6 +80,9 @@ async def on_message(message):
 
         else:
             raise NotImplementedError(cmdstr)
+
+    if not topic:
+        return
 
     # Run commands and iterate
     try:
