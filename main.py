@@ -6,6 +6,8 @@ import traceback
 import subprocess
 import os
 import shutil
+import aiostream
+import itertools
 
 from pathlib import Path
 
@@ -25,7 +27,7 @@ def writeTxt(new_content, dest, warn):
     destpath = Path(TEXT_ROOT) / dest
     # try:
     with open(destpath, 'a') as fp:
-        fp.write(new_content + '\n')
+        fp.write(new_content.replace('\n\n', '\n') + '\n')
     # except OSError:
     #     if warn:
     #         warn(f"WARN:\n```text\n{traceback.format_exc()}```")
@@ -39,12 +41,7 @@ def writeTxt(new_content, dest, warn):
     #     with open(destpath, 'w') as fp:
     #         fp.write(prev_content + new_content + '\n')
 
-@bot.listen()
-async def on_ready():
-    print(f'We have logged in as {bot.user}')
-
-@bot.listen()
-async def on_message(message):
+async def process_message(message):
     if message.author == bot.user:
         return
 
@@ -102,5 +99,27 @@ async def on_message(message):
         except:
             pass
 
+async def process_backlog(guild, max=50):
+    for channel in guild.text_channels:
+        async for message in aiostream.stream.take(channel.history(), max):
+            print("Backloggin", message)
+            await process_message(message)
+
+@bot.command()
+async def backlog(ctx, *args):
+    max = 50
+    if args:
+        max = int(args[0])
+    await process_backlog(ctx.guild, max)
+
+@bot.listen()
+async def on_ready():
+    print(f'We have logged in as {bot.user}')
+
+@bot.listen()
+async def on_message(message):
+    await process_message(message)
+
 if __name__ == "__main__":
     bot.run(config.token)
+iostream
